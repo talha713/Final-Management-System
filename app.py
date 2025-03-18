@@ -123,10 +123,14 @@ if check_login():
         if not result_data:
             st.warning("No results uploaded yet.")
         else:
-            classes = list(set([r[0] for r in result_data]))
-            selected_class = st.selectbox("Select Class", classes)
-            exams = [r[1] for r in result_data if r[0] == selected_class]
-            selected_exam = st.selectbox("Select Exam", exams)
+            col1, col2 = st.columns(2)
+            with col1:
+                exams = list(set([r[1] for r in result_data]))
+                selected_exam = st.selectbox("Select Exam", exams)
+            with col2:
+                classes = [r[0] for r in result_data if r[1] == selected_exam]
+                selected_class = st.selectbox("Select Class", classes)
+            
             if st.button("Show Result"):
                 pdf_path = os.path.join(get_user_folder(), f"{selected_class}_{selected_exam}.pdf")
                 st.download_button("Download Full Class Result", get_original_pdf(selected_class, selected_exam), f"{selected_class}_{selected_exam}.pdf", "application/pdf")
@@ -137,10 +141,14 @@ if check_login():
         if not result_data:
             st.warning("No results uploaded yet.")
         else:
-            classes = list(set([r[0] for r in result_data]))
-            selected_class = st.selectbox("Select Class", classes)
-            exams = [r[1] for r in result_data if r[0] == selected_class]
-            selected_exam = st.selectbox("Select Exam", exams)
+            col1, col2 = st.columns(2)
+            with col1:
+                exams = list(set([r[1] for r in result_data]))
+                selected_exam = st.selectbox("Select Exam", exams)
+            with col2:
+                classes = [r[0] for r in result_data if r[1] == selected_exam]
+                selected_class = st.selectbox("Select Class", classes)
+            
             if st.button("Delete Result"):
                 if delete_result(selected_class, selected_exam):
                     st.success("Result deleted successfully!")
