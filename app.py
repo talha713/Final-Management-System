@@ -6,6 +6,7 @@ import pickle
 from io import BytesIO
 from reportlab.pdfgen import canvas
 
+# Directory and cache setup
 data_store = "results/"  # Directory to store PDFs
 cache_file = "cache.pkl"  # File to store persistent state
 os.makedirs(data_store, exist_ok=True)
@@ -35,7 +36,27 @@ def check_login():
         st.session_state.username = None
 
     if not st.session_state.logged_in:
-        choice = st.radio("Choose an option", ["Login", "Register"])
+        # Centered Institute Logo
+        st.markdown(
+            """
+            <style>
+            .centered-img {
+                display: flex;
+                justify-content: center;
+            }
+            </style>
+            <div class="centered-img">
+            """,
+            unsafe_allow_html=True
+        )
+        
+        st.image("logo-removebg-preview.png", width=200)
+
+        st.markdown("</div>", unsafe_allow_html=True)  # Closing the div
+
+        st.title("📚 Institute Result Management System")
+
+        choice = st.radio("Choose an option", ["Login", "Register"], horizontal=True)
 
         if choice == "Register":
             new_username = st.text_input("Choose a username")
@@ -101,6 +122,7 @@ def delete_result(class_name, exam_name):
         return True
     return False
 
+# Main app interface
 if check_login():
     st.title("📊 Result Management System")
     st.sidebar.button("Logout", on_click=logout)
