@@ -54,7 +54,7 @@ def check_login():
 
         st.markdown("</div>", unsafe_allow_html=True)  # Closing the div
 
-        st.title("📚 Institute Result Management System")
+        st.title("📚 Result Management System")
 
         choice = st.radio("Choose an option", ["Login", "Register"], horizontal=True)
 
