@@ -1,17 +1,59 @@
 import streamlit as st
 import fitz  # PyMuPDF for reading PDFs
-import pandas as pd
 import os
 import pickle
-from io import BytesIO
-from reportlab.pdfgen import canvas
+import pandas as pd
 
-# Directory and cache setup
-data_store = "results/"  # Directory to store PDFs
-cache_file = "cache.pkl"  # File to store persistent state
+# Directory setup
+data_store = "results/"  
+students_data_file = "students.pkl"  
 os.makedirs(data_store, exist_ok=True)
 
-# User authentication
+# Load & Save Student Data
+def load_students():
+    if os.path.exists(students_data_file):
+        with open(students_data_file, "rb") as f:
+            students = pickle.load(f)
+            # Ensure backward compatibility by adding missing fields
+            for student in students:
+                student.setdefault("father_name", "")
+                student.setdefault("mobile_no", "")
+                student.setdefault("address", "")
+            return students
+    return []
+
+def save_students(students):
+    with open(students_data_file, "wb") as f:
+        pickle.dump(students, f)
+
+# Add Student
+def add_student(roll_no, name, father_name, student_class, mobile_no, address):
+    students = load_students()
+    if any(student["roll_no"] == roll_no for student in students):
+        return False  # Roll No already exists
+    students.append({
+        "roll_no": roll_no,
+        "name": name,
+        "father_name": father_name,
+        "class": student_class,
+        "mobile_no": mobile_no,
+        "address": address
+    })
+    save_students(students)
+    return True
+
+# Search Students
+def search_students(search_term, search_type):
+    students = load_students()
+    if search_type == "Roll No":
+        return [s for s in students if s["roll_no"] == search_term]
+    elif search_type == "Name":
+        return [s for s in students if search_term.lower() in s["name"].lower()]
+    elif search_type == "Class":
+        return [s for s in students if s["class"] == search_term]
+    return students
+
+# Load & Save Users
 def load_users():
     if os.path.exists("users.pkl"):
         with open("users.pkl", "rb") as f:
@@ -25,7 +67,7 @@ def save_users(users):
 def register_user(username, password):
     users = load_users()
     if username in users:
-        return False  # User already exists
+        return False  
     users[username] = password
     save_users(users)
     return True
@@ -36,26 +78,7 @@ def check_login():
         st.session_state.username = None
 
     if not st.session_state.logged_in:
-        # Centered Institute Logo
-        st.markdown(
-            """
-            <style>
-            .centered-img {
-                display: flex;
-                justify-content: center;
-            }
-            </style>
-            <div class="centered-img">
-            """,
-            unsafe_allow_html=True
-        )
-        
-        st.image("logo-removebg-preview.png", width=200)
-
-        st.markdown("</div>", unsafe_allow_html=True)  # Closing the div
-
-        st.title("📚 Result Management System")
-
+        st.title("📚 Jamia Ishaatul Islam")
         choice = st.radio("Choose an option", ["Login", "Register"], horizontal=True)
 
         if choice == "Register":
@@ -105,8 +128,9 @@ def list_saved_results():
     result_data = []
     for file in files:
         if file.endswith(".pdf"):
-            class_name, exam_name = file.rsplit("_", 1)
-            exam_name = exam_name.replace(".pdf", "")
+            parts = file.split("_")
+            class_name = "_".join(parts[:-1])
+            exam_name = parts[-1].replace(".pdf", "")
             result_data.append((class_name, exam_name, file))
     return result_data
 
@@ -122,14 +146,13 @@ def delete_result(class_name, exam_name):
         return True
     return False
 
-# Main app interface
+# Main App
 if check_login():
-    st.title("📊 Result Management System")
     st.sidebar.button("Logout", on_click=logout)
-    menu = ["Upload Result", "View Result", "Delete Result"]
+    menu = ["📤 Upload Result", "📑 View Result", "🗑️ Delete Result", "👩‍🎓 Add Student Data", "📋 View Student Data", "🗑️ Delete Student Data"]
     choice = st.sidebar.selectbox("Menu", menu)
 
-    if choice == "Upload Result":
+    if choice == "📤 Upload Result":
         st.subheader("Upload Exam Result (PDF)")
         class_name = st.text_input("Enter Class Name")
         exam_name = st.text_input("Enter Exam Name")
@@ -139,7 +162,7 @@ if check_login():
             save_uploaded_file(uploaded_file, class_name, exam_name)
             st.success("Result uploaded successfully!")
 
-    elif choice == "View Result":
+    elif choice == "📑 View Result":
         st.subheader("View Exam Result")
         result_data = list_saved_results()
         if not result_data:
@@ -154,10 +177,9 @@ if check_login():
                 selected_class = st.selectbox("Select Class", classes)
             
             if st.button("Show Result"):
-                pdf_path = os.path.join(get_user_folder(), f"{selected_class}_{selected_exam}.pdf")
                 st.download_button("Download Full Class Result", get_original_pdf(selected_class, selected_exam), f"{selected_class}_{selected_exam}.pdf", "application/pdf")
 
-    elif choice == "Delete Result":
+    elif choice == "🗑️ Delete Result":
         st.subheader("Delete Exam Result")
         result_data = list_saved_results()
         if not result_data:
@@ -176,3 +198,93 @@ if check_login():
                     st.success("Result deleted successfully!")
                 else:
                     st.error("Error deleting the result.")
+
+    elif choice == "👩‍🎓 Add Student Data":
+        # Initialize session state for input fields
+        if "student_data" not in st.session_state:
+            st.session_state.student_data = {
+                "roll_no": "",
+                "name": "",
+                "father_name": "",
+                "class": "",
+                "mobile_no": "",
+                "address": ""
+            }
+
+        st.subheader("Add Student Data")
+
+        # Input fields
+        st.session_state.student_data["roll_no"] = st.text_input("Roll No", value=st.session_state.student_data["roll_no"])
+        st.session_state.student_data["name"] = st.text_input("Name", value=st.session_state.student_data["name"])
+        st.session_state.student_data["father_name"] = st.text_input("Father Name", value=st.session_state.student_data["father_name"])
+        st.session_state.student_data["class"] = st.text_input("Class", value=st.session_state.student_data["class"])
+        st.session_state.student_data["mobile_no"] = st.text_input("Mobile No", value=st.session_state.student_data["mobile_no"])
+        st.session_state.student_data["address"] = st.text_area("Address", value=st.session_state.student_data["address"])
+
+        # Function to add student and reset form
+        def add_student_data():
+            if all(st.session_state.student_data.values()):  # Ensure all fields are filled
+                if add_student(
+                    st.session_state.student_data["roll_no"],
+                    st.session_state.student_data["name"],
+                    st.session_state.student_data["father_name"],
+                    st.session_state.student_data["class"],
+                    st.session_state.student_data["mobile_no"],
+                    st.session_state.student_data["address"],
+                ):
+                    st.success("Student added successfully!")
+                    # Clear input fields for new entries
+                    st.session_state.student_data = {
+                        "roll_no": "",
+                        "name": "",
+                        "father_name": "",
+                        "class": "",
+                        "mobile_no": "",
+                        "address": ""
+                    }
+                else:
+                    st.error("Roll No already exists!")
+            else:
+                st.warning("Please fill in all fields.")
+
+        st.button("Add Student", on_click=add_student_data)
+
+    elif choice == "📋 View Student Data":
+        st.subheader("View Student Data")
+        search_type = st.radio("Search By", ["Roll No", "Name", "Class", "View All"])
+        search_term = st.text_input(f"Enter {search_type}") if search_type != "View All" else None
+
+        if st.button("Search"):
+            results = search_students(search_term, search_type)
+            if results:
+                # Display student data in a table format
+                df = pd.DataFrame(results)
+                st.dataframe(df)
+
+                # Provide an option to download the student data as a CSV file
+                csv = df.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="Download Student Data as CSV",
+                    data=csv,
+                    file_name="students_data.csv",
+                    mime="text/csv"
+                )
+            else:
+                st.warning("No students found.")
+
+    elif choice == "🗑️ Delete Student Data":
+        st.subheader("Delete Student Data")
+        students = load_students()
+
+        if not students:
+            st.warning("No student data available.")
+        else:
+            # Create dropdowns to select a student by roll number
+            roll_numbers = [student["roll_no"] for student in students]
+            selected_roll_no = st.selectbox("Select Roll No", roll_numbers)
+
+            if st.button("Delete Student"):
+                updated_students = [s for s in students if s["roll_no"] != selected_roll_no]
+                save_students(updated_students)
+                st.success(f"Student with Roll No {selected_roll_no} deleted successfully!")
+                st.experimental_rerun()  # Refresh the page after deletion
